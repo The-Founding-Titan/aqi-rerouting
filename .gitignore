@@ -1,0 +1,35 @@
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python environments and generated files
+.venv/
+.venv-win/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Node.js and frontend build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs and local configuration
+*.log
+.DS_Store
+Thumbs.db
+
+# Local datasets - retain on this laptop
+backend/ml/data/
+
+# Editor and local tooling
+.vscode/
+
+
+# Trained ML artifacts (kept locally for now)
+backend/ml/models/
