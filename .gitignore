@@ -33,3 +33,5 @@ backend/ml/data/
 
 # Trained ML artifacts (kept locally for now)
 backend/ml/models/
+# Local ML research and experiments
+backend/ml/
