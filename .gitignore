@@ -30,8 +30,11 @@ backend/ml/data/
 # Editor and local tooling
 .vscode/
 
+# Ignore ML research and experiments
+backend/ml/*
 
-# Trained ML artifacts (kept locally for now)
-backend/ml/models/
-# Local ML research and experiments
-backend/ml/
+# Allow production Delhi model and metadata
+!backend/ml/models/
+backend/ml/models/*
+!backend/ml/models/delhi_cross_station_pm25_rf_leaf30.joblib
+!backend/ml/models/delhi_cross_station_pm25_rf_leaf30_metadata.json

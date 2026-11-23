@@ -2,6 +2,9 @@ import re
 import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+import time
+import copy
+import threading
 
 import requests
 
@@ -359,6 +362,35 @@ def fetch_all_valid_stations():
     }
 
 
+# Cache validated DPCC station observations for 5 minutes.
+DPCC_CACHE_TTL = 300
+
+_dpcc_cache = None
+_dpcc_cache_time = 0
+_dpcc_cache_lock = threading.Lock()
+
+
+def get_cached_valid_stations():
+    global _dpcc_cache, _dpcc_cache_time
+
+    with _dpcc_cache_lock:
+        now = time.monotonic()
+
+        if _dpcc_cache is not None and now - _dpcc_cache_time < DPCC_CACHE_TTL:
+            print("DPCC CACHE HIT")
+            return copy.deepcopy(_dpcc_cache)
+
+        result = fetch_all_valid_stations()
+
+        if not result["valid_stations"]:
+            raise DPCCDataError("No Delhi station has valid recent data.")
+
+        _dpcc_cache = result
+        _dpcc_cache_time = now
+
+        return copy.deepcopy(_dpcc_cache)
+
+
 def calculate_distance(lat1, lon1, lat2, lon2):
     """Calculate distance between two coordinates in kilometres."""
 
@@ -383,7 +415,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 def select_nearest_valid_station(latitude, longitude):
     """Return the nearest station with valid recent observations."""
 
-    result = fetch_all_valid_stations()
+    result = get_cached_valid_stations()
     valid_stations = result["valid_stations"]
 
     if not valid_stations:

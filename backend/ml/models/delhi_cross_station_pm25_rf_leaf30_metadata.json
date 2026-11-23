@@ -1,0 +1,53 @@
+{
+    "model_name": "Delhi Cross-Station PM2.5 Random Forest - Leaf 30",
+    "target": "next_hour_pm25",
+    "target_unit": "\u00b5g/m\u00b3",
+    "features": [
+        "pm25",
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "lag_24",
+        "hour",
+        "month",
+        "day_of_week"
+    ],
+    "stations": {
+        "site_113": "Shadipur",
+        "site_115": "NSIT_Dwarka",
+        "site_117": "ITO",
+        "site_1428": "Okhla_Phase_2",
+        "site_1430": "Rohini"
+    },
+    "training_period": {
+        "target_start_year": 2018,
+        "target_end_year": 2024
+    },
+    "training_rows": 274866,
+    "model_parameters": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "criterion": "squared_error",
+        "max_depth": null,
+        "max_features": 0.8,
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 30,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 100,
+        "n_jobs": 4,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+    },
+    "sklearn_version": "1.9.1",
+    "created_at_utc": "2026-10-31T15:15:58.907887+00:00",
+    "optimization": {
+        "min_samples_leaf": 30,
+        "selection_basis": "Held-out station validation, 2023 and 2024"
+    }
+}

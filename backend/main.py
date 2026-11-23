@@ -14,6 +14,10 @@ try:
 except ModuleNotFoundError:
     from delhi_ml.delhi_service import DelhiPredictionService
     from geo.boundary_service import is_inside_delhi
+try:
+    from backend.services.dpcc_service import fetch_all_valid_stations
+except ModuleNotFoundError:
+    from services.dpcc_service import fetch_all_valid_stations
 
 
 @asynccontextmanager
@@ -99,11 +103,30 @@ def get_forecast(
     latitude: float = Query(23.3441, ge=-90, le=90),
     longitude: float = Query(85.3096, ge=-180, le=180),
 ):
+    # Delhi locations use our Random Forest model.
+    if is_inside_delhi(latitude, longitude):
+        try:
+            service = app.state.delhi_prediction_service
+
+            return {
+                "latitude": latitude,
+                "longitude": longitude,
+                "region": "Delhi",
+                "source": "DPCC + Delhi Random Forest ML Model",
+                "data_type": "next-hour PM2.5 prediction",
+                **service.predict(latitude, longitude),
+            }
+
+        except Exception as error:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Delhi forecast failed: {str(error)}",
+            )
     params = {
         "latitude": latitude,
         "longitude": longitude,
         "hourly": "pm2_5",
-        "forecast_days": 1,
+        "forecast_days": 2,
         "timezone": "auto",
     }
 
@@ -129,6 +152,10 @@ def get_forecast(
         from datetime import datetime
 
         now = datetime.now().astimezone()
+        print("SERVER NOW:", now)
+        print("FORECAST TIMEZONE:", data.get("timezone"))
+        print("FIRST HOURLY TIMES:", times[:5])
+        print("LAST HOURLY TIMES:", times[-5:])
         forecasts = []
 
         for time_str, value in zip(times, values):
@@ -253,4 +280,42 @@ def get_pm25_prediction(
         raise HTTPException(
             status_code=502,
             detail="Could not retrieve PM2.5 data.",
+        )
+
+
+@app.get("/api/delhi/stations")
+def get_delhi_stations():
+    try:
+        result = fetch_all_valid_stations()
+
+        stations = []
+
+        for station in result["valid_stations"]:
+            latest = station["observations"][-1]
+
+            stations.append(
+                {
+                    "name": station["station"],
+                    "key": station["station_key"],
+                    "latitude": station["latitude"],
+                    "longitude": station["longitude"],
+                    "pm25": latest["pm25"],
+                    "timestamp": latest["timestamp"],
+                    "observation_count": station["observation_count"],
+                }
+            )
+
+        return {
+            "source": "DPCC",
+            "pollutant": "PM2.5",
+            "unit": "µg/m³",
+            "stations": stations,
+            "available_station_count": len(stations),
+            "failed_stations": result["failed_stations"],
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not retrieve Delhi station data: {str(error)}",
         )
