@@ -1,9 +1,30 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 import requests
 
-app = FastAPI(title="AQI Predictor API")
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+
+# Support both execution styles:
+# 1. uvicorn backend.main:app (from project root)
+# 2. uvicorn main:app (from backend directory)
+try:
+    from backend.delhi_ml.delhi_service import DelhiPredictionService
+except ModuleNotFoundError:
+    from delhi_ml.delhi_service import DelhiPredictionService
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the Delhi ML model once when the API starts.
+    app.state.delhi_prediction_service = DelhiPredictionService()
+    yield
+
+
+app = FastAPI(
+    title="AQI Predictor API",
+    lifespan=lifespan,
+)
 
 frontend_url = os.getenv(
     "FRONTEND_URL",
@@ -115,7 +136,6 @@ def get_forecast(
             forecast_time = datetime.fromisoformat(time_str)
 
             # Compare local wall-clock times in the location's timezone.
-            # The API timestamps are local times without a UTC offset.
             if forecast_time.replace(tzinfo=None) > now.replace(tzinfo=None):
                 forecasts.append(
                     {
@@ -139,4 +159,28 @@ def get_forecast(
         raise HTTPException(
             status_code=502,
             detail="Could not retrieve the air-quality forecast.",
+        )
+
+
+@app.get("/api/delhi/pm25-prediction")
+def get_delhi_pm25_prediction(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+):
+    try:
+        service = app.state.delhi_prediction_service
+
+        return {
+            "source": "DPCC + Delhi Random Forest ML Model",
+            "data_type": "next-hour PM2.5 prediction",
+            **service.predict(latitude, longitude),
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Delhi PM2.5 prediction failed: {str(error)}",
         )
