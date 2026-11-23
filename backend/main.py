@@ -10,8 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 # 2. uvicorn main:app (from backend directory)
 try:
     from backend.delhi_ml.delhi_service import DelhiPredictionService
+    from backend.geo.boundary_service import is_inside_delhi
 except ModuleNotFoundError:
     from delhi_ml.delhi_service import DelhiPredictionService
+    from geo.boundary_service import is_inside_delhi
 
 
 @asynccontextmanager
@@ -183,4 +185,72 @@ def get_delhi_pm25_prediction(
         raise HTTPException(
             status_code=502,
             detail=f"Delhi PM2.5 prediction failed: {str(error)}",
+        )
+
+
+@app.get("/api/pm25-prediction")
+def get_pm25_prediction(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+):
+    # Route locations inside NCT Delhi to DPCC + ML.
+    if is_inside_delhi(latitude, longitude):
+        try:
+            service = app.state.delhi_prediction_service
+
+            return {
+                "latitude": latitude,
+                "longitude": longitude,
+                "region": "Delhi",
+                "source": "DPCC + Delhi Random Forest ML Model",
+                "data_type": "next-hour PM2.5 prediction",
+                **service.predict(latitude, longitude),
+            }
+
+        except Exception as error:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Delhi PM2.5 prediction failed: {str(error)}",
+            )
+
+    # Locations outside Delhi use Open-Meteo.
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": "pm2_5",
+        "timezone": "auto",
+    }
+
+    try:
+        response = requests.get(
+            AQI_URL,
+            params=params,
+            timeout=15,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        current = data.get("current")
+
+        if not current or current.get("pm2_5") is None:
+            raise HTTPException(
+                status_code=502,
+                detail="Current PM2.5 data is unavailable.",
+            )
+
+        return {
+            "latitude": data.get("latitude"),
+            "longitude": data.get("longitude"),
+            "region": "Outside Delhi",
+            "source": "Open-Meteo Air Quality API",
+            "data_type": "current PM2.5 estimate",
+            "pollutant": "PM2.5",
+            "unit": "µg/m³",
+            "current": current,
+        }
+
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not retrieve PM2.5 data.",
         )
