@@ -276,10 +276,12 @@ def get_pm25_prediction(
             "current": current,
         }
 
-    except requests.RequestException:
+    except requests.RequestException as error:
+        print(f"Open-Meteo request failed: {repr(error)}")
+
         raise HTTPException(
             status_code=502,
-            detail="Could not retrieve PM2.5 data.",
+            detail=f"Open-Meteo request failed: {str(error)}",
         )
 
 
