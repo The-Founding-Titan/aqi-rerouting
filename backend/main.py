@@ -1,5 +1,7 @@
 import os
 import requests
+import time
+import threading
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
@@ -46,6 +48,11 @@ app.add_middleware(
 )
 
 AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+# Open-Meteo response cache
+OPEN_METEO_CACHE_TTL = 600  # 10 minutes
+
+open_meteo_cache = {}
+open_meteo_cache_lock = threading.Lock()
 
 
 @app.get("/")
@@ -240,7 +247,16 @@ def get_pm25_prediction(
                 detail=f"Delhi PM2.5 prediction failed: {str(error)}",
             )
 
-    # Locations outside Delhi use Open-Meteo.
+        # Locations outside Delhi use Open-Meteo.
+    cache_key = (round(latitude, 3), round(longitude, 3))
+
+    with open_meteo_cache_lock:
+        cached = open_meteo_cache.get(cache_key)
+
+        if cached and time.monotonic() - cached["timestamp"] < OPEN_METEO_CACHE_TTL:
+            print("OPEN-METEO CACHE HIT")
+            return cached["data"]
+
     params = {
         "latitude": latitude,
         "longitude": longitude,
@@ -249,11 +265,7 @@ def get_pm25_prediction(
     }
 
     try:
-        response = requests.get(
-            AQI_URL,
-            params=params,
-            timeout=15,
-        )
+        response = requests.get(AQI_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
 
@@ -265,7 +277,7 @@ def get_pm25_prediction(
                 detail="Current PM2.5 data is unavailable.",
             )
 
-        return {
+        result = {
             "latitude": data.get("latitude"),
             "longitude": data.get("longitude"),
             "region": "Outside Delhi",
@@ -276,9 +288,16 @@ def get_pm25_prediction(
             "current": current,
         }
 
+        with open_meteo_cache_lock:
+            open_meteo_cache[cache_key] = {
+                "timestamp": time.monotonic(),
+                "data": result,
+            }
+
+        return result
+
     except requests.RequestException as error:
         print(f"Open-Meteo request failed: {repr(error)}")
-
         raise HTTPException(
             status_code=502,
             detail=f"Open-Meteo request failed: {str(error)}",
