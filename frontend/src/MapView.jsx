@@ -458,8 +458,35 @@ export default function MapView() {
           </CircleMarker>
         ))}
 
-        {origin && <Marker position={origin} />}
-        {destination && <Marker position={destination} />}
+        {origin && (
+          <CircleMarker
+            center={origin}
+            radius={9}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 2,
+              fillColor: '#16a34a',
+              fillOpacity: 1,
+            }}
+          >
+            <Popup>Origin</Popup>
+          </CircleMarker>
+        )}
+
+        {destination && (
+          <CircleMarker
+            center={destination}
+            radius={9}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 2,
+              fillColor: '#dc2626',
+              fillOpacity: 1,
+            }}
+          >
+            <Popup>Destination</Popup>
+          </CircleMarker>
+        )}
 
         {routes.map((route, index) => (
           <Polyline
