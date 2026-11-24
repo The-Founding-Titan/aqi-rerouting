@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 
 import MapView from './MapView'
-const API = 'http://127.0.0.1:8000/api/aqi'
+const API_BASE_URL = import.meta.env.DEV
+  ? 'http://127.0.0.1:8000'
+  : 'https://aqi-rerouting.onrender.com'
+
+const API = `${API_BASE_URL}/api/aqi`
 
 function getCategory(aqi) {
   if (aqi == null) return { label: 'Unavailable', color: '#64748b' }

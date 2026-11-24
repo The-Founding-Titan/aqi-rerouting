@@ -14,6 +14,10 @@ import {
 
 import 'leaflet/dist/leaflet.css'
 
+const API_BASE_URL = import.meta.env.DEV
+  ? 'http://127.0.0.1:8000'
+  : 'https://aqi-rerouting.onrender.com'
+
 const DEFAULT_LOCATION = [23.3441, 85.3096]
 
 function MapClickHandler({ onSelect }) {
@@ -68,7 +72,7 @@ async function getRoutePollution(coordinates) {
 
   const results = await Promise.all(
     points.map(async (point) => {
-      const url = new URL('http://127.0.0.1:8000/api/pm25-prediction')
+      const url = new URL(`${API_BASE_URL}/api/pm25-prediction`)
 
       url.searchParams.set('latitude', point[0])
       url.searchParams.set('longitude', point[1])
@@ -234,9 +238,7 @@ export default function MapView() {
         longitude: String(longitude),
       })
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/forecast?${params}`
-      )
+      const response = await fetch(`${API_BASE_URL}/api/forecast?${params}`)
 
       if (!response.ok) {
         throw new Error('Could not load the PM2.5 forecast.')
@@ -255,7 +257,7 @@ export default function MapView() {
     setStationError('')
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/delhi/stations')
+      const response = await fetch(`${API_BASE_URL}/api/delhi/stations`)
 
       if (!response.ok) {
         throw new Error('Could not load Delhi station data.')
